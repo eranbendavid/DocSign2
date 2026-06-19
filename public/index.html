@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DocSign - מערכת חתימת חוזים דיגיטלית</title>
+    <!-- CSS and Font Resources -->
+    <link rel="stylesheet" href="style.css?v=1.2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+</head>
+<body>
+
+    <!-- 1. NAVIGATION BAR (Only visible in Admin view) -->
+    <nav class="navbar" id="main-nav" style="display: none;">
+        <a href="#admin" class="logo">
+            <div class="logo-icon">
+                <i class="fa-solid fa-file-signature"></i>
+            </div>
+            <span>DocSign <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">ניהול</span></span>
+        </a>
+        <div class="nav-links">
+            <a href="#admin" class="btn-nav active" id="nav-dashboard">
+                <i class="fa-solid fa-chart-line"></i> לוח בקרה
+            </a>
+            <a href="#create-contract" class="btn-nav" id="nav-create">
+                <i class="fa-solid fa-plus"></i> חוזה חדש
+            </a>
+        </div>
+    </nav>
+
+    <div id="auth-shell" style="display:flex; justify-content:flex-end; padding: 12px 16px;"></div>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="container" id="app-container">
+
+        <!-- ================= ADMIN VIEW ================= -->
+        <div id="admin-view" style="display: none;">
+            
+            <!-- Statistics Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-info">
+                        <h3>חוזים שנוצרו</h3>
+                        <div class="metric-value" id="stats-total-contracts">0</div>
+                    </div>
+                    <div class="metric-icon">
+                        <i class="fa-regular fa-file-lines"></i>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-info">
+                        <h3>סך הכל חתימות</h3>
+                        <div class="metric-value" id="stats-total-signatures">0</div>
+                    </div>
+                    <div class="metric-icon">
+                        <i class="fa-solid fa-pen-nib"></i>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-info">
+                        <h3>אחוז השלמה מוערך</h3>
+                        <div class="metric-value" id="stats-completion-rate">0%</div>
+                    </div>
+                    <div class="metric-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Contract Form Section -->
+            <div class="card" id="create-contract-card">
+                <div class="card-title-bar">
+                    <h2><i class="fa-solid fa-file-circle-plus gradient-text"></i> יצירת חוזה חדש</h2>
+                </div>
+                <form id="create-contract-form">
+                    <div class="form-group">
+                        <label for="contract-title">שם החוזה / כותרת</label>
+                        <input type="text" id="contract-title" class="form-control" placeholder="לדוגמה: הסכם שכירות, אישור קבלת תקנון" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="contract-file">העלה קובץ חוזה (PDF או DOCX)</label>
+                        <input type="file" id="contract-file" class="form-control" accept=".pdf,.docx">
+                        <small>ניתן להעלות קובץ במקום להזין את הטקסט באופן ידני.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="contract-body">תוכן החוזה</label>
+                        <textarea id="contract-body" class="form-control" placeholder="הקלד או הדבק את תוכן החוזה כאן..." autocomplete="off"></textarea>
+                    </div>
+                    <div style="text-align: left;">
+                        <button type="submit" class="btn">
+                            <i class="fa-solid fa-floppy-disk"></i> שמור חוזה וייצר קישור
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Admin Management (only visible to super-admins) -->
+            <div class="card" id="admin-management-card" style="display:none;">
+                <div class="card-title-bar">
+                    <h2><i class="fa-solid fa-user-shield gradient-text"></i> ניהול מנהלים</h2>
+                </div>
+                <div style="padding: 16px;">
+                    <p style="margin:0 0 8px;color:var(--text-secondary);">הוספת מנהל חדש ע"י דוא"ל הגוגל שלו:</p>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input id="admin-email-input" placeholder="email@gmail.com" class="form-control" style="flex:1;" />
+                        <button id="btn-add-admin" class="btn">הוסף מנהל</button>
+                    </div>
+                    <div id="admins-list" style="margin-top:12px;color:var(--text-muted);"></div>
+                </div>
+            </div>
+
+            <!-- Existing Contracts List -->
+            <div class="card">
+                <div class="card-title-bar">
+                    <h2><i class="fa-solid fa-folder-open gradient-text"></i> חוזים פעילים</h2>
+                </div>
+                <div id="contracts-list-container">
+                    <!-- Contract list items will be generated dynamically -->
+                    <div style="text-align: center; color: var(--text-muted); padding: 20px 0;" id="no-contracts-placeholder">
+                        <i class="fa-regular fa-folder-open" style="font-size: 2.5rem; margin-bottom: 12px; display: block;"></i>
+                        טרם נוצרו חוזים במערכת. השתמש בטופס למעלה כדי ליצור את החוזה הראשון שלך!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signatures Table -->
+            <div class="card" id="signatures-section">
+                <div class="card-title-bar">
+                    <h2><i class="fa-solid fa-list-check gradient-text"></i> מעקב חתימות שהתקבלו</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="filter-contract-select" class="form-control" style="width: auto; padding: 6px 12px; font-size: 0.9rem;">
+                            <option value="all">כל החוזים</option>
+                            <!-- Dynamic select options -->
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="btn-export-csv" title="ייצוא ל-Excel/CSV">
+                            <i class="fa-solid fa-file-excel"></i> ייצא לקובץ Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>שם החוזה</th>
+                                <th>שם מלא</th>
+                                <th>תעודת זהות</th>
+                                <th>מספר דירה</th>
+                                <th>מספר טלפון</th>
+                                <th>תאריך ושעה</th>
+                                <th style="text-align: center;">חתימה</th>
+                                <th style="text-align: center;">פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signatures-table-body">
+                            <!-- Rows will be dynamically loaded -->
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px 0;">
+                                    <i class="fa-solid fa-signature" style="font-size: 2.5rem; margin-bottom: 12px; display: block;"></i>
+                                    אין עדיין חתימות במערכת. שתף את קישור החוזה עם החותמים!
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ================= CLIENT / SIGNEE VIEW ================= -->
+        <div id="client-view" style="display: none;">
+            <div class="client-card">
+                
+                <!-- Main Signing Form Screen -->
+                <div id="signing-screen">
+                    <div class="client-header">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                            <h1 id="client-contract-title" class="gradient-text">טוען חוזה...</h1>
+                        </div>
+                        <p>אנא קרא את תוכן החוזה בעיון, מלא את פרטיך וחתום בתחתית הדף.</p>
+                    </div>
+
+                    <!-- Contract View Container -->
+                    <div class="contract-scroll-box" id="client-contract-body">
+                        טוען את תוכן החוזה...
+                    </div>
+
+                    <!-- Client Personal Details Form -->
+                    <form id="sign-form">
+                        <h3 style="margin-bottom: 16px; font-size: 1.2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+                            <i class="fa-regular fa-id-card"></i> פרטים אישיים (חובה)
+                        </h3>
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label for="client-name">שם מלא</label>
+                                <input type="text" id="client-name" class="form-control" placeholder="שם פרטי ומשפחה" required autocomplete="name">
+                            </div>
+                            <div class="form-group">
+                                <label for="client-id">תעודת זהות</label>
+                                <input type="text" id="client-id" class="form-control" placeholder="9 ספרות" required pattern="[0-9]{9}" title="תעודת זהות חייבת להכיל 9 ספרות" inputmode="numeric">
+                            </div>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label for="client-apartment">מספר דירה</label>
+                                <input type="number" id="client-apartment" class="form-control" placeholder="לדוגמה: 12" required min="1" inputmode="numeric">
+                            </div>
+                            <div class="form-group">
+                                <label for="client-phone">מספר טלפון</label>
+                                <input type="tel" id="client-phone" class="form-control" placeholder="05XXXXXXXX" required pattern="05[0-9]{8}" title="מספר טלפון נייד תקין (למשל 0521234567)" inputmode="tel">
+                            </div>
+                        </div>
+
+                        <!-- Signature Draw Pad Section -->
+                        <h3 style="margin-top: 24px; margin-bottom: 8px; font-size: 1.2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+                            <i class="fa-solid fa-pen-nib"></i> חתימה דיגיטלית
+                        </h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">חתום באמצעות האצבע או העכבר בתוך התיבה המקווקוות:</p>
+                        
+                        <div class="signature-canvas-container">
+                            <canvas id="signature-canvas"></canvas>
+                            <div class="canvas-instruction" id="canvas-instruction-text">
+                                <i class="fa-solid fa-signature"></i> חתום כאן
+                            </div>
+                            <button type="button" class="canvas-clear-btn" id="btn-clear-canvas" title="נקה חתימה">
+                                <i class="fa-solid fa-eraser"></i> נקה
+                            </button>
+                        </div>
+
+                        <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 16px; padding: 14px 20px;">
+                            <i class="fa-solid fa-check"></i> אישור ושליחת חתימה
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Submission Success Screen -->
+                <div id="success-screen" style="display: none;" class="success-screen">
+                    <div class="checkmark-circle">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <h2 class="gradient-text">החתימה נקלטה בהצלחה!</h2>
+                    <p>תודה רבה. פרטיך והסכמתך לחוזה נשמרו בהצלחה במערכת.</p>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);" id="success-timestamp"></p>
+                    
+                    <!-- WhatsApp Share Option -->
+                    <div id="whatsapp-share-container" style="margin-top: 24px; display: none;">
+                        <p style="font-size: 0.95rem; color: var(--text-primary); margin-bottom: 12px; font-weight: 600;">
+                            כדי לעדכן את המנהל שחתמת, לחץ על הכפתור הבא לשליחת אישור חתום בוואטסאפ:
+                        </p>
+                        <a href="" id="btn-share-whatsapp" target="_blank" class="btn btn-success" style="background: #25d366; width: 100%; font-size: 1.1rem; padding: 14px 20px;">
+                            <i class="fa-brands fa-whatsapp" style="font-size: 1.3rem;"></i> שלח אישור חתום למנהל בוואטסאפ
+                        </a>
+                    </div>
+                    
+                    <div style="margin-top: 30px;">
+                        <i class="fa-solid fa-file-shield" style="font-size: 3rem; color: rgba(255,255,255,0.15);"></i>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ================= PREMIUM TOAST ALERTS ================= -->
+    <div id="toast-notification" class="toast">
+        <i class="fa-solid fa-info-circle" id="toast-icon"></i>
+        <span id="toast-message">הודעת מערכת</span>
+    </div>
+
+    <!-- ================= SIGNATURE LIGHTBOX MODAL ================= -->
+    <div class="modal" id="signature-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="btn-close-modal">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 style="margin-bottom: 8px;" id="modal-signee-name">חתימת החותם</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);" id="modal-signee-meta">פרטי חותם</p>
+            <img src="" alt="חתימה דיגיטלית" class="modal-signature-img" id="modal-img">
+            <div style="text-align: center; margin-top: 8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-download-sig">
+                    <i class="fa-solid fa-download"></i> הורד תמונת חתימה
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= EDIT CONTRACT MODAL ================= -->
+    <div class="modal" id="edit-contract-modal">
+        <div class="modal-content" style="width: 600px; max-width: 95%;">
+            <button class="modal-close" id="btn-close-edit-modal">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 style="margin-bottom: 20px;">
+                <i class="fa-solid fa-file-pen" style="color: var(--primary);"></i> עריכת חוזה
+            </h3>
+            <form id="edit-contract-form">
+                <input type="hidden" id="edit-contract-id">
+                <div class="form-group">
+                    <label for="edit-contract-title">שם החוזה / כותרת</label>
+                    <input type="text" id="edit-contract-title" class="form-control" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="edit-contract-file">העלה קובץ חוזה חדש (PDF או DOCX)</label>
+                    <input type="file" id="edit-contract-file" class="form-control" accept=".pdf,.docx">
+                    <small>בחר קובץ כדי להחליף את הקובץ הקיים, אם יש.</small>
+                    <p id="edit-contract-current-file" style="margin-top: 8px; color: var(--text-secondary);">אין קובץ מצורף</p>
+                </div>
+                <div class="form-group">
+                    <label for="edit-contract-attachment">נספח (PDF בלבד)</label>
+                    <input type="file" id="edit-contract-attachment" class="form-control" accept=".pdf">
+                    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+                        <button type="button" id="btn-upload-attachment" class="btn">העלה נספח</button>
+                        <small id="attachment-upload-note" style="color:var(--text-secondary);">הנספח יתווסף כקובץ PDF נפרד וימוזג לתחתית החוזה.</small>
+                    </div>
+                    <div id="edit-contract-attachments-list" style="margin-top:8px; color:var(--text-muted);"></div>
+                </div>
+                <div class="form-group">
+                    <label for="edit-contract-body">תוכן החוזה</label>
+                    <textarea id="edit-contract-body" class="form-control" style="min-height: 220px;" autocomplete="off"></textarea>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-start;">
+                    <button type="submit" class="btn">
+                        <i class="fa-solid fa-floppy-disk"></i> שמור שינויים
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-edit">
+                        <i class="fa-solid fa-xmark"></i> ביטול
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script src="app.js?v=1.2"></script>
+</body>
+</html>

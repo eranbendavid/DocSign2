@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"c:\\\\Users\\\\eranb\\\\OneDrive\\\\היובל 4\\\\DocSign\" ; node -e \"const https=require\\('https'\\); const url='https://raw\\.githubusercontent\\.com/google/fonts/main/ofl/assistant/Assistant-Regular\\.ttf'; https\\.request\\(url,\\{method:'HEAD'\\},res=>\\{console\\.log\\(res\\.statusCode\\); res\\.resume\\(\\);\\}\\)\\.on\\('error',e=>\\{console\\.error\\('ERR', e\\.message\\);\\}\\)\\.end\\(\\);\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
